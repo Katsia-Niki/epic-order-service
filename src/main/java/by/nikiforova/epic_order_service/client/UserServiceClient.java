@@ -20,7 +20,7 @@ public class UserServiceClient {
     @Value("${user.service.url}")
     private String userServiceUrl;
 
-    @CircuitBreaker(name = "userService", fallbackMethod = "getUserFallback")
+    @CircuitBreaker(name = "userService", fallbackMethod = "getUserByEmailFallback")
     public UserInfoDto getUserByEmail(String email) {
 
         var request = restClient.get()
@@ -34,7 +34,7 @@ public class UserServiceClient {
         return request.retrieve().body(UserInfoDto.class);
     }
 
-    @CircuitBreaker(name = "userService", fallbackMethod = "getUserFallback")
+    @CircuitBreaker(name = "userService", fallbackMethod = "getUserByIdFallback")
     public UserInfoDto getUserById(Long userId) {
 
         var request = restClient.get()
@@ -48,8 +48,13 @@ public class UserServiceClient {
         return request.retrieve().body(UserInfoDto.class);
     }
 
-    private UserInfoDto getUserFallback(Throwable t) {
-        log.warn("Circuit breaker fallback triggered: {}", t.getMessage());
+    private UserInfoDto getUserByEmailFallback(String email, Throwable t) {
+        log.warn("Circuit breaker getUserByEmailFallback triggered: {}", t.getMessage());
+        throw new EntityNotFoundException(t.getMessage());
+    }
+
+    private UserInfoDto getUserByIdFallback(Long userId, Throwable t) {
+        log.warn("Circuit breaker getUserByIdFallback triggered: {}", t.getMessage());
         throw new EntityNotFoundException(t.getMessage());
     }
 
