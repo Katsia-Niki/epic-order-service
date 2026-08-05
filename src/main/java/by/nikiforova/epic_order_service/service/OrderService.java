@@ -1,10 +1,17 @@
 package by.nikiforova.epic_order_service.service;
 
+import by.nikiforova.epic_order_service.client.UserServiceClient;
+import by.nikiforova.epic_order_service.dto.request.OrderCreateRequestDto;
+import by.nikiforova.epic_order_service.dto.request.OrderItemRequestDto;
+import by.nikiforova.epic_order_service.dto.request.OrderUpdateRequestDto;
+import by.nikiforova.epic_order_service.dto.response.OrderWithUserResponseDto;
+import by.nikiforova.epic_order_service.dto.response.UserInfoDto;
 import by.nikiforova.epic_order_service.entity.Item;
 import by.nikiforova.epic_order_service.entity.Order;
 import by.nikiforova.epic_order_service.entity.OrderItem;
 import by.nikiforova.epic_order_service.entity.OrderStatus;
 import by.nikiforova.epic_order_service.exception.EntityNotFoundException;
+import by.nikiforova.epic_order_service.mapper.OrderMapper;
 import by.nikiforova.epic_order_service.repository.ItemRepository;
 import by.nikiforova.epic_order_service.repository.OrderRepository;
 import by.nikiforova.epic_order_service.specification.OrderSpecification;
@@ -18,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -29,68 +37,91 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final ItemRepository itemRepository;
+    private final UserServiceClient userServiceClient;
+    private final OrderMapper  orderMapper;
 
     @Transactional
-    public Order createOrder(Order order) {
+    public OrderWithUserResponseDto createOrder(OrderCreateRequestDto dto) {
 
-        log.info("Starting order creation: email={}", order.getId());
+        log.info("Starting order creation: email={}", dto.email());
+
+        UserInfoDto userInfo = userServiceClient.getUserByEmail(dto.email());
 
         Order newOrder = Order.builder()
-                .userId(order.getUserId())
+                .userId(userInfo.id())
                 .status(OrderStatus.CREATED)
                 .deleted(false)
                 .build();
 
         BigDecimal total = BigDecimal.ZERO;
 
-        for (OrderItem incoming : order.getOrderItems()) {
-            Item item = itemRepository.findById(incoming.getItem().getId())
+        for (OrderItemRequestDto incoming : dto.orderItems()) {
+            Item item = itemRepository.findById(incoming.itemId())
                     .orElseThrow(() -> new EntityNotFoundException(
-                            "Item not found " + incoming.getItem().getId()));
+                            "Item not found " + incoming.itemId()));
 
             OrderItem orderItem = OrderItem.builder()
                     .order(newOrder)
                     .item(item)
-                    .quantity(incoming.getQuantity())
+                    .quantity(incoming.quantity())
                     .build();
 
             newOrder.getOrderItems().add(orderItem);
-            total = total.add(item.getPrice().multiply(BigDecimal.valueOf(incoming.getQuantity())));
+            total = total.add(item.getPrice().multiply(BigDecimal.valueOf(incoming.quantity())));
         }
 
         newOrder.setTotalPrice(total);
-        return orderRepository.save(newOrder);
+        Order order = orderRepository.save(newOrder);
+        return new OrderWithUserResponseDto(orderMapper.toResponseDto(order), userInfo);
     }
 
     @Transactional(readOnly = true)
-    public Order getById(Long orderId) {
+    public OrderWithUserResponseDto getById(Long orderId) {
 
-        return orderRepository.findByIdAndDeletedFalse(orderId)
+        Order order = orderRepository.findByIdAndDeletedFalse(orderId)
                 .orElseThrow(() -> new EntityNotFoundException(ORDER_NOT_FOUND + orderId));
+
+        return toOrderWithUserResponseDto(order);
     }
 
     @Transactional(readOnly = true)
-    public Page<Order> getAll(OrderStatus status, LocalDateTime createdFrom, LocalDateTime createdTo, Pageable pageable) {
+    public Page<OrderWithUserResponseDto> getAll(OrderStatus status, LocalDateTime createdFrom, LocalDateTime createdTo, Pageable pageable) {
 
         Specification<Order> spec = Specification.where(OrderSpecification.notDeleted())
                 .and(OrderSpecification.createdFrom(createdFrom))
                 .and(OrderSpecification.createdTo(createdTo))
                 .and(OrderSpecification.hasStatus(status));
 
-        return orderRepository.findAll(spec, pageable);
+        Page<Order> orderPage = orderRepository.findAll(spec, pageable);
+
+        return orderPage.map(this::toOrderWithUserResponseDto);
     }
 
     @Transactional(readOnly = true)
-    public List<Order> getByUserId(Long userId) {
-        return orderRepository.findByUserIdAndDeletedFalse(userId);
+    public List<OrderWithUserResponseDto> getByUserId(Long userId) {
+
+        List<Order> orders = orderRepository.findByUserIdAndDeletedFalse(userId);
+        UserInfoDto userInfo = userServiceClient.getUserById(userId);
+
+        List<OrderWithUserResponseDto> result = new ArrayList<>();
+
+        for (Order order : orders) {
+            result.add(new OrderWithUserResponseDto(
+                    orderMapper.toResponseDto(order),
+                    userInfo
+            ));
+        }
+        return result;
     }
 
     @Transactional
-    public Order update(Order order) {
-        Order orderToUpdate = orderRepository.findByIdAndDeletedFalse(order.getId())
-                .orElseThrow(() -> new EntityNotFoundException(ORDER_NOT_FOUND + order.getId()));
-        orderToUpdate.setStatus(order.getStatus());
-        return orderRepository.save(orderToUpdate);
+    public OrderWithUserResponseDto update(Long orderId, OrderUpdateRequestDto dto) {
+        Order orderToUpdate = orderRepository.findByIdAndDeletedFalse(orderId)
+                .orElseThrow(() -> new EntityNotFoundException(ORDER_NOT_FOUND + orderId));
+
+        orderMapper.updateEntity(dto, orderToUpdate);
+
+        return toOrderWithUserResponseDto(orderToUpdate);
     }
 
     @Transactional
@@ -99,5 +130,10 @@ public class OrderService {
                 .orElseThrow(() -> new EntityNotFoundException(ORDER_NOT_FOUND + orderId));
         orderToDelete.setDeleted(true);
         orderRepository.save(orderToDelete);
+    }
+
+    private OrderWithUserResponseDto toOrderWithUserResponseDto(Order order) {
+        UserInfoDto userInfo = userServiceClient.getUserById(order.getUserId());
+        return new OrderWithUserResponseDto(orderMapper.toResponseDto(order), userInfo);
     }
 }
