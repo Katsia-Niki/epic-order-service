@@ -16,12 +16,12 @@ import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
 
+import static by.nikiforova.epic_order_service.constant.Constants.TIMEZONE;
+
 
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
-
-    private static final String TIMEZONE = "Europe/Minsk";
 
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(
@@ -55,6 +55,20 @@ public class GlobalExceptionHandler {
                 errors
         );
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(
+            AccessDeniedException e, HttpServletRequest request) {
+        log.warn(e.getMessage());
+        ErrorResponse response = new ErrorResponse(
+                LocalDateTime.now(ZoneId.of(TIMEZONE)),
+                HttpStatus.FORBIDDEN.value(),
+                e.getMessage(),
+                request.getRequestURI(),
+                null
+        );
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
     }
 
     @ExceptionHandler(Exception.class)

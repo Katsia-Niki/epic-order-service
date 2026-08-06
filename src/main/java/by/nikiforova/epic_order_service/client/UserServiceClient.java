@@ -10,11 +10,12 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import static by.nikiforova.epic_order_service.constant.Constants.HEADER_AUTHORIZATION;
+
 @Slf4j
 @Component
 public class UserServiceClient {
 
-    private static final String HEADER_AUTHORIZATION = "Authorization";
     private final RestClient restClient = RestClient.builder().build();
 
     @Value("${user.service.url}")

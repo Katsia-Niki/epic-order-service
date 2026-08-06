@@ -15,6 +15,7 @@ import by.nikiforova.epic_order_service.mapper.OrderMapper;
 import by.nikiforova.epic_order_service.repository.ItemRepository;
 import by.nikiforova.epic_order_service.repository.OrderRepository;
 import by.nikiforova.epic_order_service.specification.OrderSpecification;
+import by.nikiforova.epic_order_service.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -28,12 +29,12 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import static by.nikiforova.epic_order_service.constant.Constants.ORDER_NOT_FOUND;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderService {
-
-    private static final String ORDER_NOT_FOUND = "Order not found ";
 
     private final OrderRepository orderRepository;
     private final ItemRepository itemRepository;
@@ -46,6 +47,8 @@ public class OrderService {
         log.info("Starting order creation: email={}", dto.email());
 
         UserInfoDto userInfo = userServiceClient.getUserByEmail(dto.email());
+
+        SecurityUtils.checkAccess(userInfo.id());
 
         Order newOrder = Order.builder()
                 .userId(userInfo.id())
@@ -81,6 +84,8 @@ public class OrderService {
         Order order = orderRepository.findByIdAndDeletedFalse(orderId)
                 .orElseThrow(() -> new EntityNotFoundException(ORDER_NOT_FOUND + orderId));
 
+        SecurityUtils.checkAccess(order.getUserId());
+
         return toOrderWithUserResponseDto(order);
     }
 
@@ -99,6 +104,8 @@ public class OrderService {
 
     @Transactional(readOnly = true)
     public List<OrderWithUserResponseDto> getByUserId(Long userId) {
+
+        SecurityUtils.checkAccess(userId);
 
         List<Order> orders = orderRepository.findByUserIdAndDeletedFalse(userId);
         UserInfoDto userInfo = userServiceClient.getUserById(userId);
@@ -119,6 +126,8 @@ public class OrderService {
         Order orderToUpdate = orderRepository.findByIdAndDeletedFalse(orderId)
                 .orElseThrow(() -> new EntityNotFoundException(ORDER_NOT_FOUND + orderId));
 
+        SecurityUtils.checkAccess(orderToUpdate.getUserId());
+
         orderMapper.updateEntity(dto, orderToUpdate);
 
         return toOrderWithUserResponseDto(orderToUpdate);
@@ -128,6 +137,9 @@ public class OrderService {
     public void delete(Long orderId) {
         Order orderToDelete = orderRepository.findByIdAndDeletedFalse(orderId)
                 .orElseThrow(() -> new EntityNotFoundException(ORDER_NOT_FOUND + orderId));
+
+        SecurityUtils.checkAccess(orderToDelete.getUserId());
+
         orderToDelete.setDeleted(true);
         orderRepository.save(orderToDelete);
     }
