@@ -90,7 +90,8 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public Page<OrderWithUserResponseDto> getAll(OrderStatus status, LocalDateTime createdFrom, LocalDateTime createdTo, Pageable pageable) {
+    public Page<OrderWithUserResponseDto> getAll(OrderStatus status, LocalDateTime createdFrom,
+                                                 LocalDateTime createdTo, Pageable pageable) {
 
         Specification<Order> spec = Specification.where(OrderSpecification.notDeleted())
                 .and(OrderSpecification.createdFrom(createdFrom))

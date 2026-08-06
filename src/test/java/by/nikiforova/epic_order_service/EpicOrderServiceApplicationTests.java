@@ -3,9 +3,14 @@ package by.nikiforova.epic_order_service;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.TestPropertySource;
 
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest
+@TestPropertySource(properties = {
+		"user.service.url=http://localhost:8081",
+		"jwt.secret=test-secret-key-test-secret-key-test-secret-key"
+})
 class EpicOrderServiceApplicationTests {
 
 	@Test
