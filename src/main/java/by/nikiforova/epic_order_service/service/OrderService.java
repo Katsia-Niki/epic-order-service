@@ -18,6 +18,8 @@ import by.nikiforova.epic_order_service.specification.OrderSpecification;
 import by.nikiforova.epic_order_service.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -29,6 +31,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import static by.nikiforova.epic_order_service.constant.Constants.ORDERS_CACHE;
 import static by.nikiforova.epic_order_service.constant.Constants.ORDER_NOT_FOUND;
 
 @Slf4j
@@ -78,6 +81,7 @@ public class OrderService {
         return new OrderWithUserResponseDto(orderMapper.toResponseDto(order), userInfo);
     }
 
+    @Cacheable(value = ORDERS_CACHE, key = "#orderId")
     @Transactional(readOnly = true)
     public OrderWithUserResponseDto getById(Long orderId) {
 
@@ -122,6 +126,7 @@ public class OrderService {
         return result;
     }
 
+    @CacheEvict(value = ORDERS_CACHE, key = "#orderId")
     @Transactional
     public OrderWithUserResponseDto update(Long orderId, OrderUpdateRequestDto dto) {
         Order orderToUpdate = orderRepository.findByIdAndDeletedFalse(orderId)
@@ -134,6 +139,7 @@ public class OrderService {
         return toOrderWithUserResponseDto(orderToUpdate);
     }
 
+    @CacheEvict(value = ORDERS_CACHE, key = "#orderId")
     @Transactional
     public void delete(Long orderId) {
         Order orderToDelete = orderRepository.findByIdAndDeletedFalse(orderId)
