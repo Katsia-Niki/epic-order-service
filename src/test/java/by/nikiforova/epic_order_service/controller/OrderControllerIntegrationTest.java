@@ -109,7 +109,7 @@ class OrderControllerIntegrationTest extends AbstractIntegrationTest {
 
         Long orderId = orderRepository.findAll().getFirst().getId();
 
-        stubUserById(1L);
+        stubUsersByIds(1L);
 
         mockMvc.perform(get("/api/orders"))
                 .andExpect(status().isOk())
@@ -118,6 +118,8 @@ class OrderControllerIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.content[0].order.id").value(orderId.intValue()))
                 .andExpect(jsonPath("$.content[0].user.id").value(1))
                 .andExpect(jsonPath("$.content[0].user.email").value("ivan_ivanov@gmail.com"));
+
+        WIRE_MOCK.verify(WireMock.getRequestedFor(urlPathEqualTo("/api/users/by-ids")));
     }
 
     @Test
@@ -252,6 +254,27 @@ class OrderControllerIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.status").value(403))
                 .andExpect(jsonPath("$.message").value("Access denied"));
+    }
+
+    private void stubUsersByIds(Long userId) {
+        WIRE_MOCK.stubFor(WireMock.get(urlPathEqualTo("/api/users/by-ids"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                            [
+                              {
+                                "id": %d,
+                                "name": "Ivan",
+                                "surname": "Ivanov",
+                                "email": "ivan_ivanov@gmail.com",
+                                "birthDate": "1992-06-12",
+                                "active": true,
+                                "createdAt": "2026-01-01T10:00:00",
+                                "updatedAt": "2026-01-01T10:00:00"
+                              }
+                            ]
+                            """.formatted(userId))));
     }
 
     private void stubUserById(Long userId) {

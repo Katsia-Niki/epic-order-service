@@ -9,6 +9,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.web.util.UriComponentsBuilder;
+
+import java.util.Collection;
+import java.util.List;
 
 import static by.nikiforova.epic_order_service.constant.Constants.HEADER_AUTHORIZATION;
 
@@ -49,6 +53,29 @@ public class UserServiceClient {
         return request.retrieve().body(UserInfoDto.class);
     }
 
+    @CircuitBreaker(name = "userService", fallbackMethod = "getUsersByIdsFallback")
+    public List<UserInfoDto> getUsersByIds(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+
+        var request = restClient.get()
+                .uri(UriComponentsBuilder
+                        .fromUriString(userServiceUrl + "/api/users/by-ids")
+                        .queryParam("ids", ids)
+                        .build()
+                        .toUri());
+
+        String auth = currentAuthorization();
+
+        if (auth != null) {
+            request = request.header(HEADER_AUTHORIZATION, auth);
+        }
+        UserInfoDto[] body = request.retrieve().body(UserInfoDto[].class);
+
+        return body == null ? List.of() : List.of(body);
+    }
+
     private UserInfoDto getUserByEmailFallback(String email, Throwable t) {
         log.warn("Circuit breaker getUserByEmailFallback triggered: {}", t.getMessage());
         throw new EntityNotFoundException(t.getMessage());
@@ -56,6 +83,11 @@ public class UserServiceClient {
 
     private UserInfoDto getUserByIdFallback(Long userId, Throwable t) {
         log.warn("Circuit breaker getUserByIdFallback triggered: {}", t.getMessage());
+        throw new EntityNotFoundException(t.getMessage());
+    }
+
+    private List<UserInfoDto> getUsersByIdsFallback(Collection<Long> ids, Throwable t) {
+        log.warn("Circuit breaker getUsersByIdsFallback triggered: {}", t.getMessage());
         throw new EntityNotFoundException(t.getMessage());
     }
 

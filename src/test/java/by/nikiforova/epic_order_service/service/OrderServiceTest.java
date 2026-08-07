@@ -39,9 +39,11 @@ import java.time.Month;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -239,7 +241,7 @@ class OrderServiceTest {
         Page<Order> orderPage = new PageImpl<>(List.of(order), pageable, 1);
 
         when(orderRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(orderPage);
-        when(userServiceClient.getUserById(1L)).thenReturn(userInfo);
+        when(userServiceClient.getUsersByIds(anyCollection())).thenReturn(List.of(userInfo));
 
         OrderResponseDto orderResponseDto = new OrderResponseDto(
                 10L, 1L, OrderStatus.CREATED, new BigDecimal("30.00"),
@@ -254,8 +256,62 @@ class OrderServiceTest {
         assertEquals(userInfo, result.getContent().getFirst().user());
 
         verify(orderRepository).findAll(any(Specification.class), eq(pageable));
-        verify(userServiceClient).getUserById(1L);
+        verify(userServiceClient).getUsersByIds(Set.of(1L));
+        verify(userServiceClient, never()).getUserById(any());
         verify(orderMapper).toResponseDto(order);
+    }
+
+    @Test
+    @DisplayName("get all - batch users by ids")
+    void getAllShouldCallGetUsersByIdsOnceForDifferentUsers() {
+        Order order1 = Order.builder()
+                .userId(1L)
+                .status(OrderStatus.CREATED)
+                .totalPrice(new BigDecimal("30.00"))
+                .deleted(false)
+                .build();
+        order1.setId(10L);
+
+        Order order2 = Order.builder()
+                .userId(2L)
+                .status(OrderStatus.CREATED)
+                .totalPrice(new BigDecimal("50.00"))
+                .deleted(false)
+                .build();
+        order2.setId(11L);
+
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<Order> orderPage = new PageImpl<>(List.of(order1, order2), pageable, 2);
+
+        UserInfoDto userInfo2 = new UserInfoDto(
+                2L, "Anna", "Petrova", "anna.mail@gmail.com",
+                LocalDate.of(2001, Month.MAY, 1), true,
+                LocalDateTime.now(), LocalDateTime.now()
+        );
+
+        when(orderRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(orderPage);
+        when(userServiceClient.getUsersByIds(anyCollection()))
+                .thenReturn(List.of(userInfo, userInfo2));
+
+        OrderResponseDto dto1 = new OrderResponseDto(
+                10L, 1L, OrderStatus.CREATED, new BigDecimal("30.00"),
+                List.of(), null, null
+        );
+        OrderResponseDto dto2 = new OrderResponseDto(
+                11L, 2L, OrderStatus.CREATED, new BigDecimal("50.00"),
+                List.of(), null, null
+        );
+        when(orderMapper.toResponseDto(order1)).thenReturn(dto1);
+        when(orderMapper.toResponseDto(order2)).thenReturn(dto2);
+
+        Page<OrderWithUserResponseDto> result = orderService.getAll(null, null, null, pageable);
+
+        assertEquals(2, result.getContent().size());
+        assertEquals(userInfo, result.getContent().get(0).user());
+        assertEquals(userInfo2, result.getContent().get(1).user());
+
+        verify(userServiceClient, times(1)).getUsersByIds(Set.of(1L, 2L));
+        verify(userServiceClient, never()).getUserById(any());
     }
 
     @Test

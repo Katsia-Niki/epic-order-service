@@ -21,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -28,8 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 import static by.nikiforova.epic_order_service.constant.Constants.ORDERS_CACHE;
 import static by.nikiforova.epic_order_service.constant.Constants.ORDER_NOT_FOUND;
@@ -104,7 +104,25 @@ public class OrderService {
 
         Page<Order> orderPage = orderRepository.findAll(spec, pageable);
 
-        return orderPage.map(this::toOrderWithUserResponseDto);
+        Set<Long> userIds = new HashSet<>();
+        for (Order order : orderPage.getContent()) {
+            userIds.add(order.getUserId());
+        }
+
+        List<UserInfoDto> users = userServiceClient.getUsersByIds(userIds);
+
+        Map<Long, UserInfoDto> usersById = new HashMap<>();
+        for (UserInfoDto user : users) {
+            usersById.put(user.id(), user);
+        }
+
+        List<OrderWithUserResponseDto> result = new ArrayList<>();
+
+        for (Order order : orderPage.getContent()) {
+            result.add(new OrderWithUserResponseDto(orderMapper.toResponseDto(order),
+                    usersById.get(order.getUserId())));
+        }
+        return new PageImpl<>(result, pageable, orderPage.getTotalElements());
     }
 
     @Transactional(readOnly = true)
