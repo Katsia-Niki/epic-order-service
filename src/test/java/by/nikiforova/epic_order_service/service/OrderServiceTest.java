@@ -11,6 +11,7 @@ import by.nikiforova.epic_order_service.entity.Item;
 import by.nikiforova.epic_order_service.entity.Order;
 import by.nikiforova.epic_order_service.entity.OrderStatus;
 import by.nikiforova.epic_order_service.exception.EntityNotFoundException;
+import by.nikiforova.epic_order_service.exception.ServiceUnavailableException;
 import by.nikiforova.epic_order_service.mapper.OrderMapper;
 import by.nikiforova.epic_order_service.repository.ItemRepository;
 import by.nikiforova.epic_order_service.repository.OrderRepository;
@@ -41,6 +42,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import static by.nikiforova.epic_order_service.constant.Constants.PLACEHOLDER_EMAIL;
+import static by.nikiforova.epic_order_service.constant.Constants.PLACEHOLDER_NAME;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
@@ -163,6 +166,23 @@ class OrderServiceTest {
     }
 
     @Test
+    @DisplayName("create order - ServiceUnavailableException when user placeholder")
+    void createOrderShouldThrowServiceUnavailableWhenPlaceholderUser() {
+        UserInfoDto placeholder = new UserInfoDto(
+                null, PLACEHOLDER_NAME, PLACEHOLDER_NAME, PLACEHOLDER_EMAIL,
+                null, null, null, null
+        );
+        when(userServiceClient.getUserByEmail("ivan.mail@gmail.com")).thenReturn(placeholder);
+
+        assertThrows(ServiceUnavailableException.class,
+                () -> orderService.createOrder(createRequestDto));
+
+        verify(userServiceClient).getUserByEmail("ivan.mail@gmail.com");
+        verify(itemRepository, never()).findById(any());
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("get by id - success")
     void getOrderByIdShouldReturnOrderWithUser() {
 
@@ -204,6 +224,39 @@ class OrderServiceTest {
         verify(orderRepository).findByIdAndDeletedFalse(10L);
         verify(userServiceClient, never()).getUserById(any());
         verify(orderMapper, never()).toResponseDto(any());
+    }
+
+    @Test
+    @DisplayName("get by id - returns order with placeholder user")
+    void getOrderByIdShouldReturnPlaceholderUserWhenUserServiceUnavailable() {
+        Order order = Order.builder()
+                .userId(1L)
+                .status(OrderStatus.CREATED)
+                .totalPrice(new BigDecimal("30.00"))
+                .deleted(false)
+                .build();
+        order.setId(10L);
+
+        UserInfoDto placeholder = new UserInfoDto(
+                1L, PLACEHOLDER_NAME, PLACEHOLDER_NAME, PLACEHOLDER_EMAIL,
+                null, null, null, null
+        );
+
+        when(orderRepository.findByIdAndDeletedFalse(10L)).thenReturn(Optional.of(order));
+        when(userServiceClient.getUserById(1L)).thenReturn(placeholder);
+
+        OrderResponseDto orderResponseDto = new OrderResponseDto(10L, 1L, OrderStatus.CREATED,
+                new BigDecimal("30.00"), List.of(), null, null);
+        when(orderMapper.toResponseDto(order)).thenReturn(orderResponseDto);
+
+        OrderWithUserResponseDto result = orderService.getById(10L);
+
+        assertEquals(orderResponseDto, result.order());
+        assertEquals(PLACEHOLDER_NAME, result.user().name());
+        assertEquals(PLACEHOLDER_EMAIL, result.user().email());
+
+        verify(orderRepository).findByIdAndDeletedFalse(10L);
+        verify(userServiceClient).getUserById(1L);
     }
 
     @Test

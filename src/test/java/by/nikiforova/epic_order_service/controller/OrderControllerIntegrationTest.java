@@ -88,6 +88,25 @@ class OrderControllerIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void shouldGetOrderByIdWithPlaceholderWhenUserServiceUnavailable() throws Exception {
+        Order order = orderRepository.save(Order.builder()
+                .userId(1L)
+                .status(OrderStatus.CREATED)
+                .totalPrice(new BigDecimal("30.00"))
+                .deleted(false)
+                .build());
+
+        WIRE_MOCK.stubFor(WireMock.get(urlPathEqualTo("/api/users/1"))
+                .willReturn(aResponse().withStatus(500)));
+
+        mockMvc.perform(get("/api/orders/" + order.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.order.id").value(order.getId().intValue()))
+                .andExpect(jsonPath("$.user.name").value("Unavailable"))
+                .andExpect(jsonPath("$.user.email").value("unavailable@mail"));
+    }
+
+    @Test
     void shouldGetAllOrders() throws Exception {
 
         stubUserByEmail("ivan_ivanov@gmail.com", 1L);

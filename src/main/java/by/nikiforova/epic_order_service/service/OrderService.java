@@ -11,6 +11,7 @@ import by.nikiforova.epic_order_service.entity.Order;
 import by.nikiforova.epic_order_service.entity.OrderItem;
 import by.nikiforova.epic_order_service.entity.OrderStatus;
 import by.nikiforova.epic_order_service.exception.EntityNotFoundException;
+import by.nikiforova.epic_order_service.exception.ServiceUnavailableException;
 import by.nikiforova.epic_order_service.mapper.OrderMapper;
 import by.nikiforova.epic_order_service.repository.ItemRepository;
 import by.nikiforova.epic_order_service.repository.OrderRepository;
@@ -31,8 +32,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 
-import static by.nikiforova.epic_order_service.constant.Constants.ORDERS_CACHE;
-import static by.nikiforova.epic_order_service.constant.Constants.ORDER_NOT_FOUND;
+import static by.nikiforova.epic_order_service.constant.Constants.*;
 
 @Slf4j
 @Service
@@ -43,6 +43,7 @@ public class OrderService {
     private final ItemRepository itemRepository;
     private final UserServiceClient userServiceClient;
     private final OrderMapper  orderMapper;
+    private final OrderCacheService orderCacheService;
 
     @Transactional
     public OrderWithUserResponseDto createOrder(OrderCreateRequestDto dto) {
@@ -50,6 +51,10 @@ public class OrderService {
         log.info("Starting order creation: email={}", dto.email());
 
         UserInfoDto userInfo = userServiceClient.getUserByEmail(dto.email());
+
+        if (PLACEHOLDER_EMAIL.equals(userInfo.email())) {
+            throw new ServiceUnavailableException("User service is unavailable");
+        }
 
         SecurityUtils.checkAccess(userInfo.id());
 
@@ -81,16 +86,10 @@ public class OrderService {
         return new OrderWithUserResponseDto(orderMapper.toResponseDto(order), userInfo);
     }
 
-    @Cacheable(value = ORDERS_CACHE, key = "#orderId")
-    @Transactional(readOnly = true)
     public OrderWithUserResponseDto getById(Long orderId) {
-
-        Order order = orderRepository.findByIdAndDeletedFalse(orderId)
-                .orElseThrow(() -> new EntityNotFoundException(ORDER_NOT_FOUND + orderId));
-
-        SecurityUtils.checkAccess(order.getUserId());
-
-        return toOrderWithUserResponseDto(order);
+        OrderWithUserResponseDto result = orderCacheService.getById(orderId);
+        SecurityUtils.checkAccess(result.order().userId());
+        return result;
     }
 
     @Transactional(readOnly = true)

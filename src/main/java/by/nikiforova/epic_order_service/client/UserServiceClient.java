@@ -7,14 +7,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import static by.nikiforova.epic_order_service.constant.Constants.HEADER_AUTHORIZATION;
+import static by.nikiforova.epic_order_service.constant.Constants.*;
 
 @Slf4j
 @Component
@@ -36,7 +38,14 @@ public class UserServiceClient {
             request = request.header(HEADER_AUTHORIZATION, auth);
         }
 
-        return request.retrieve().body(UserInfoDto.class);
+        try {
+            return request.retrieve().body(UserInfoDto.class);
+        } catch (RestClientResponseException e) {
+            if (e.getStatusCode().value() == 404) {
+                throw new EntityNotFoundException("User not found: " + email);
+            }
+            throw e;
+        }
     }
 
     @CircuitBreaker(name = "userService", fallbackMethod = "getUserByIdFallback")
@@ -50,7 +59,14 @@ public class UserServiceClient {
             request = request.header(HEADER_AUTHORIZATION, auth);
         }
 
-        return request.retrieve().body(UserInfoDto.class);
+        try {
+            return request.retrieve().body(UserInfoDto.class);
+        } catch (RestClientResponseException e) {
+            if (e.getStatusCode().value() == 404) {
+                throw new EntityNotFoundException("User not found: " + userId);
+            }
+            throw e;
+        }
     }
 
     @CircuitBreaker(name = "userService", fallbackMethod = "getUsersByIdsFallback")
@@ -78,17 +94,22 @@ public class UserServiceClient {
 
     private UserInfoDto getUserByEmailFallback(String email, Throwable t) {
         log.warn("Circuit breaker getUserByEmailFallback triggered: {}", t.getMessage());
-        throw new EntityNotFoundException(t.getMessage());
+        return placeholderUser(null);
     }
 
     private UserInfoDto getUserByIdFallback(Long userId, Throwable t) {
         log.warn("Circuit breaker getUserByIdFallback triggered: {}", t.getMessage());
-        throw new EntityNotFoundException(t.getMessage());
+        return placeholderUser(userId);
     }
 
     private List<UserInfoDto> getUsersByIdsFallback(Collection<Long> ids, Throwable t) {
         log.warn("Circuit breaker getUsersByIdsFallback triggered: {}", t.getMessage());
-        throw new EntityNotFoundException(t.getMessage());
+        List<UserInfoDto> result = new ArrayList<>();
+
+        for (Long id : ids) {
+            result.add(placeholderUser(id));
+        }
+        return result;
     }
 
     private String currentAuthorization() {
@@ -97,5 +118,18 @@ public class UserServiceClient {
             return null;
         }
         return attrs.getRequest().getHeader(HEADER_AUTHORIZATION);
+    }
+
+    private UserInfoDto placeholderUser(Long userId) {
+        return new UserInfoDto(
+                userId,
+                PLACEHOLDER_NAME,
+                PLACEHOLDER_NAME,
+                PLACEHOLDER_EMAIL,
+                null,
+                null,
+                null,
+                null
+        );
     }
 }
