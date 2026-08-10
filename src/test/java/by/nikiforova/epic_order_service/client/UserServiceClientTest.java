@@ -1,6 +1,7 @@
 package by.nikiforova.epic_order_service.client;
 
 import by.nikiforova.epic_order_service.dto.response.UserInfoDto;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -35,6 +36,7 @@ class UserServiceClientTest {
         UserInfoDto result = assertDoesNotThrow(
                 () -> (UserInfoDto) fallback.invoke(client, 7L, new RuntimeException("down")));
 
+        Assertions.assertNotNull(result);
         assertEquals(7L, result.id());
         assertEquals(PLACEHOLDER_NAME, result.name());
         assertEquals(PLACEHOLDER_NAME, result.surname());
@@ -52,6 +54,7 @@ class UserServiceClientTest {
                 () -> (UserInfoDto) fallback.invoke(
                         client, "ivan@mail.com", new RuntimeException("down")));
 
+        Assertions.assertNotNull(result);
         assertNull(result.id());
         assertEquals(PLACEHOLDER_NAME, result.name());
         assertEquals(PLACEHOLDER_EMAIL, result.email());
@@ -69,6 +72,7 @@ class UserServiceClientTest {
                 () -> (List<UserInfoDto>) fallback.invoke(
                         client, List.of(1L, 2L), new RuntimeException("down")));
 
+        Assertions.assertNotNull(result);
         assertEquals(2, result.size());
         assertEquals(1L, result.get(0).id());
         assertEquals(2L, result.get(1).id());
