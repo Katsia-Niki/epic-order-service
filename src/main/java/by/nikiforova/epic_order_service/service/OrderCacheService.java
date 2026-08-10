@@ -33,5 +33,6 @@ public class OrderCacheService {
     }
     @CacheEvict(value = ORDERS_CACHE, key = "#orderId")
     public void evict(Long orderId) {
+
     }
 }

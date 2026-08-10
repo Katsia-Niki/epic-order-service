@@ -93,12 +93,12 @@ public class UserServiceClient {
     }
 
     private UserInfoDto getUserByEmailFallback(String email, Throwable t) {
-        log.warn("Circuit breaker getUserByEmailFallback triggered: {}", t.getMessage());
+        log.warn("Circuit breaker getUserByEmailFallback triggered for email={}: {}", email, t.getMessage());
         return placeholderUser(null);
     }
 
     private UserInfoDto getUserByIdFallback(Long userId, Throwable t) {
-        log.warn("Circuit breaker getUserByIdFallback triggered: {}", t.getMessage());
+        log.warn("Circuit breaker getUserByIdFallback triggered for userId={}: {}", userId, t.getMessage());
         return placeholderUser(userId);
     }
 
