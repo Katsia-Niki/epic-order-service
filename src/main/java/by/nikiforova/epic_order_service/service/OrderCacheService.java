@@ -31,6 +31,7 @@ public class OrderCacheService {
         UserInfoDto userInfo = userServiceClient.getUserById(order.getUserId());
         return new OrderWithUserResponseDto(orderMapper.toResponseDto(order), userInfo);
     }
+
     @CacheEvict(value = ORDERS_CACHE, key = "#orderId")
     public void evict(Long orderId) {
 
