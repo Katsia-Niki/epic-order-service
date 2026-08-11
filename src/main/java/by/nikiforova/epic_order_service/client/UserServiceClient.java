@@ -31,7 +31,7 @@ public class UserServiceClient {
     public UserInfoDto getUserByEmail(String email) {
 
         var request = restClient.get()
-                .uri(userServiceUrl + "/api/users/email/{email}", email);
+                .uri(userServiceUrl + USERS_BASE_PATH + "/email/{email}", email);
 
         String auth = currentAuthorization();
         if (auth != null) {
@@ -52,7 +52,7 @@ public class UserServiceClient {
     public UserInfoDto getUserById(Long userId) {
 
         var request = restClient.get()
-                .uri(userServiceUrl + "/api/users/{id}", userId);
+                .uri(userServiceUrl + USERS_BASE_PATH + "/{id}", userId);
 
         String auth = currentAuthorization();
         if (auth != null) {
@@ -77,7 +77,7 @@ public class UserServiceClient {
 
         var request = restClient.get()
                 .uri(UriComponentsBuilder
-                        .fromUriString(userServiceUrl + "/api/users/by-ids")
+                        .fromUriString(userServiceUrl + USERS_BASE_PATH + "/by-ids")
                         .queryParam("ids", ids)
                         .build()
                         .toUri());
@@ -121,15 +121,11 @@ public class UserServiceClient {
     }
 
     private UserInfoDto placeholderUser(Long userId) {
-        return new UserInfoDto(
-                userId,
-                PLACEHOLDER_NAME,
-                PLACEHOLDER_NAME,
-                PLACEHOLDER_EMAIL,
-                null,
-                null,
-                null,
-                null
-        );
+        return UserInfoDto.builder()
+                .id(userId)
+                .name(PLACEHOLDER_NAME)
+                .surname(PLACEHOLDER_NAME)
+                .email(PLACEHOLDER_EMAIL)
+                .build();
     }
 }

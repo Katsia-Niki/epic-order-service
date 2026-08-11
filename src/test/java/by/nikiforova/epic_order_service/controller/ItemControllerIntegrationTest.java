@@ -19,7 +19,7 @@ class ItemControllerIntegrationTest extends AbstractIntegrationTest {
     void shouldCreateItemAndSaveInDatabase() throws Exception {
         ItemRequestDto requestDto = new ItemRequestDto("Socks", new BigDecimal("10.00"));
 
-        mockMvc.perform(post("/api/items")
+        mockMvc.perform(post("/api/v1/items")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(requestDto)))
                 .andExpect(status().isCreated())
@@ -42,7 +42,7 @@ class ItemControllerIntegrationTest extends AbstractIntegrationTest {
                 .price(new BigDecimal("10.00"))
                 .build());
 
-        mockMvc.perform(get("/api/items/{id}", saved.getId()))
+        mockMvc.perform(get("/api/v1/items/{id}", saved.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(saved.getId().intValue()))
                 .andExpect(jsonPath("$.name").value("Socks"))
@@ -61,7 +61,7 @@ class ItemControllerIntegrationTest extends AbstractIntegrationTest {
                 .price(new BigDecimal("50.00"))
                 .build());
 
-        mockMvc.perform(get("/api/items"))
+        mockMvc.perform(get("/api/v1/items"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].name").exists())
