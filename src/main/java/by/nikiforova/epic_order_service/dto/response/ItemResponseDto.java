@@ -1,0 +1,13 @@
+package by.nikiforova.epic_order_service.dto.response;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+public record ItemResponseDto(
+        Long id,
+        String name,
+        BigDecimal price,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
+) {
+}
