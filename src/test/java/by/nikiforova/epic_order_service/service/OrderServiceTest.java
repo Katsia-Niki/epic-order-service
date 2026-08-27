@@ -450,7 +450,7 @@ class OrderServiceTest {
     }
 
     @Test
-    @DisplayName("updateStatusFromPayment -  success")
+    @DisplayName("updateStatusFromPayment -  confirmed")
     void updateStatusFromPaymentWhenSuccessShouldConfirmOrder() {
         Order order = Order.builder()
                 .userId(1L)
@@ -462,6 +462,46 @@ class OrderServiceTest {
         orderService.updateStatusFromPayment(10L, "SUCCESS");
 
         assertEquals(OrderStatus.CONFIRMED, order.getStatus());
+    }
+
+    @Test
+    @DisplayName("updateStatusFromPayment - cancelled")
+    void updateStatusFromPaymentWhenFailedShouldCancelOrder() {
+        Order order = Order.builder()
+                .userId(1L)
+                .status(OrderStatus.CREATED)
+                .deleted(false)
+                .build();
+
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
+        orderService.updateStatusFromPayment(10L, "FAILED");
+
+        assertEquals(OrderStatus.CANCELLED, order.getStatus());
+    }
+
+    @Test
+    @DisplayName("updateStatusFromPayment - do not change status")
+    void updateStatusFromPaymentWhenNotCreatedShouldNotChangeStatus() {
+        Order order = Order.builder()
+                .userId(1L)
+                .status(OrderStatus.CONFIRMED)
+                .deleted(false)
+                .build();
+
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
+        orderService.updateStatusFromPayment(10L, "SUCCESS");
+
+        assertEquals(OrderStatus.CONFIRMED, order.getStatus());
+    }
+    @Test
+    @DisplayName("updateStatusFromPayment - EntityNotFoundException")
+    void updateStatusFromPaymentWhenOrderMissingShouldThrow() {
+        when(orderRepository.findById(10L)).thenReturn(Optional.empty());
+
+        EntityNotFoundException ex = assertThrows(EntityNotFoundException.class,
+                () -> orderService.updateStatusFromPayment(10L, "SUCCESS"));
+
+        assertEquals("Order not found 10", ex.getMessage());
     }
 
     @Test
