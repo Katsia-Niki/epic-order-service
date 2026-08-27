@@ -450,6 +450,21 @@ class OrderServiceTest {
     }
 
     @Test
+    @DisplayName("updateStatusFromPayment -  success")
+    void updateStatusFromPaymentWhenSuccessShouldConfirmOrder() {
+        Order order = Order.builder()
+                .userId(1L)
+                .status(OrderStatus.CREATED)
+                .deleted(false)
+                .build();
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
+
+        orderService.updateStatusFromPayment(10L, "SUCCESS");
+
+        assertEquals(OrderStatus.CONFIRMED, order.getStatus());
+    }
+
+    @Test
     @DisplayName("delete - success")
     void deleteShouldSoftDeleteOrder() {
         Order order = Order.builder()
