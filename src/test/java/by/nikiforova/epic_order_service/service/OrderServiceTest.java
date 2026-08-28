@@ -493,6 +493,36 @@ class OrderServiceTest {
 
         assertEquals(OrderStatus.CONFIRMED, order.getStatus());
     }
+
+    @Test
+    @DisplayName("updateStatusFromPayment - FAILED does not overwrite CONFIRMED")
+    void updateStatusFromPaymentWhenConfirmedShouldIgnoreFailed() {
+        Order order = Order.builder()
+                .userId(1L)
+                .status(OrderStatus.CONFIRMED)
+                .deleted(false)
+                .build();
+
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
+        orderService.updateStatusFromPayment(10L, "FAILED");
+
+        assertEquals(OrderStatus.CONFIRMED, order.getStatus());
+    }
+
+    @Test
+    @DisplayName("updateStatusFromPayment - SUCCESS after CANCELLED confirms order")
+    void updateStatusFromPaymentWhenCancelledAndSuccessShouldConfirm() {
+        Order order = Order.builder()
+                .userId(1L)
+                .status(OrderStatus.CANCELLED)
+                .deleted(false)
+                .build();
+
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
+        orderService.updateStatusFromPayment(10L, "SUCCESS");
+
+        assertEquals(OrderStatus.CONFIRMED, order.getStatus());
+    }
     @Test
     @DisplayName("updateStatusFromPayment - EntityNotFoundException")
     void updateStatusFromPaymentWhenOrderMissingShouldThrow() {

@@ -161,13 +161,13 @@ public class OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new EntityNotFoundException(ORDER_NOT_FOUND + orderId));
 
-        if (order.getStatus() != OrderStatus.CREATED) {
+        if (order.getStatus() == OrderStatus.CONFIRMED) {
             return;
         }
 
         if ("SUCCESS".equals(paymentStatus)) {
             order.setStatus(OrderStatus.CONFIRMED);
-        } else if ("FAILED".equals(paymentStatus)) {
+        } else if ("FAILED".equals(paymentStatus) && order.getStatus() == OrderStatus.CREATED) {
             order.setStatus(OrderStatus.CANCELLED);
         }
     }
