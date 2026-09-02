@@ -157,6 +157,23 @@ public class OrderService {
 
     @CacheEvict(value = ORDERS_CACHE, key = "#orderId")
     @Transactional
+    public void updateStatusFromPayment(Long orderId, String paymentStatus) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new EntityNotFoundException(ORDER_NOT_FOUND + orderId));
+
+        if (order.getStatus() == OrderStatus.CONFIRMED) {
+            return;
+        }
+
+        if ("SUCCESS".equals(paymentStatus)) {
+            order.setStatus(OrderStatus.CONFIRMED);
+        } else if ("FAILED".equals(paymentStatus) && order.getStatus() == OrderStatus.CREATED) {
+            order.setStatus(OrderStatus.CANCELLED);
+        }
+    }
+
+    @CacheEvict(value = ORDERS_CACHE, key = "#orderId")
+    @Transactional
     public void delete(Long orderId) {
         Order orderToDelete = orderRepository.findByIdAndDeletedFalse(orderId)
                 .orElseThrow(() -> new EntityNotFoundException(ORDER_NOT_FOUND + orderId));
