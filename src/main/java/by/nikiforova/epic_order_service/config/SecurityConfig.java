@@ -38,6 +38,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/items").hasRole(ROLE_ADMIN)
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/items/**").hasRole(ROLE_ADMIN)
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/items/**").hasRole(ROLE_ADMIN)
+
+                        .requestMatchers("/actuator/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
